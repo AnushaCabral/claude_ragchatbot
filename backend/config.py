@@ -1,16 +1,28 @@
 import os
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from pathlib import Path
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file in parent directory
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 @dataclass
 class Config:
     """Configuration settings for the RAG system"""
+    # Debug settings
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+
+    # LLM Provider settings
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "anthropic")
+
     # Anthropic API settings
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
+
+    # Groq API settings
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
     
     # Embedding model settings
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"

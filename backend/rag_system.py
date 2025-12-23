@@ -7,18 +7,42 @@ from session_manager import SessionManager
 from search_tools import ToolManager, CourseSearchTool
 from models import Course, Lesson, CourseChunk
 
+
+def create_llm_provider(config):
+    """Factory function to create appropriate LLM provider"""
+    from llm_providers import AnthropicProvider, GroqProvider
+
+    provider = config.LLM_PROVIDER.lower()
+
+    if provider == "anthropic":
+        if not config.ANTHROPIC_API_KEY:
+            raise ValueError("ANTHROPIC_API_KEY not set in environment")
+        return AnthropicProvider(config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL)
+
+    elif provider == "groq":
+        if not config.GROQ_API_KEY:
+            raise ValueError("GROQ_API_KEY not set in environment")
+        return GroqProvider(config.GROQ_API_KEY, config.GROQ_MODEL)
+
+    else:
+        raise ValueError(f"Unknown LLM provider: {provider}. Choose 'anthropic' or 'groq'")
+
 class RAGSystem:
     """Main orchestrator for the Retrieval-Augmented Generation system"""
     
     def __init__(self, config):
         self.config = config
-        
+
         # Initialize core components
         self.document_processor = DocumentProcessor(config.CHUNK_SIZE, config.CHUNK_OVERLAP)
         self.vector_store = VectorStore(config.CHROMA_PATH, config.EMBEDDING_MODEL, config.MAX_RESULTS)
-        self.ai_generator = AIGenerator(config.ANTHROPIC_API_KEY, config.ANTHROPIC_MODEL)
+
+        # Create LLM provider and initialize AI generator
+        provider = create_llm_provider(config)
+        self.ai_generator = AIGenerator(provider)
+
         self.session_manager = SessionManager(config.MAX_HISTORY)
-        
+
         # Initialize search tools
         self.tool_manager = ToolManager()
         self.search_tool = CourseSearchTool(self.vector_store)

@@ -12,6 +12,12 @@ import os
 from config import config
 from rag_system import RAGSystem
 
+
+def debug_print(*args, **kwargs):
+    """Print only if DEBUG mode is enabled"""
+    if config.DEBUG:
+        print(*args, **kwargs)
+
 # Initialize FastAPI app
 app = FastAPI(title="Course Materials RAG System", root_path="")
 
@@ -31,8 +37,8 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Initialize RAG system
-rag_system = RAGSystem(config)
+# Initialize RAG system as None, will be created in startup event
+rag_system = None
 
 # Pydantic models for request/response
 class QueryRequest(BaseModel):
@@ -57,20 +63,29 @@ class CourseStats(BaseModel):
 async def query_documents(request: QueryRequest):
     """Process a query and return response with sources"""
     try:
+        debug_print(f"[APP] Received query: {request.query}")
+        debug_print(f"[APP] RAG system type: {type(rag_system)}")
+        debug_print(f"[APP] Provider type: {type(rag_system.ai_generator.provider).__name__}")
+
         # Create session if not provided
         session_id = request.session_id
         if not session_id:
             session_id = rag_system.session_manager.create_session()
-        
+
+        debug_print(f"[APP] Calling rag_system.query()...")
         # Process query using RAG system
         answer, sources = rag_system.query(request.query, session_id)
-        
+        debug_print(f"[APP] Got answer: {answer[:50]}...")
+
         return QueryResponse(
             answer=answer,
             sources=sources,
             session_id=session_id
         )
     except Exception as e:
+        debug_print(f"[APP] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/courses", response_model=CourseStats)
@@ -87,7 +102,13 @@ async def get_course_stats():
 
 @app.on_event("startup")
 async def startup_event():
-    """Load initial documents on startup"""
+    """Initialize RAG system and load initial documents on startup"""
+    global rag_system
+
+    print("Initializing RAG system...")
+    rag_system = RAGSystem(config)
+    print(f"RAG system initialized with {type(rag_system.ai_generator.provider).__name__}")
+
     docs_path = "../docs"
     if os.path.exists(docs_path):
         print("Loading initial documents...")

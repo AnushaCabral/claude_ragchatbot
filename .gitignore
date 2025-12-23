@@ -29,3 +29,20 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code files (do not commit AI assistance artifacts)
+CLAUDE.md
+.claude/
+.cursorrules
+.cursor/
+
+# Logs and debug files
+*.log
+backend/server.log
+backend/test_groq.py
+backend/test_*.py
+
+# Environment files (additional patterns)
+**/.env
+**/.env.*
+!.env.example
