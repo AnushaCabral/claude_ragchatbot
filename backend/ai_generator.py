@@ -1,5 +1,7 @@
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from llm_providers import BaseLLMProvider
+
 
 class AIGenerator:
     """Handles interactions with LLM providers for generating responses"""
@@ -60,10 +62,13 @@ Response Guidelines:
         """
         self.provider = provider
 
-    def generate_response(self, query: str,
-                         conversation_history: Optional[str] = None,
-                         tools: Optional[List] = None,
-                         tool_manager=None) -> str:
+    def generate_response(
+        self,
+        query: str,
+        conversation_history: Optional[str] = None,
+        tools: Optional[List] = None,
+        tool_manager=None,
+    ) -> str:
         """
         Generate AI response with optional tool usage and conversation context.
 
@@ -93,9 +98,7 @@ Response Guidelines:
 
         # Determine appropriate token limit for this query
         adaptive_max_tokens = self._determine_max_tokens(
-            query=query,
-            used_tools=False,  # Not yet executed
-            tool_names=None
+            query=query, used_tools=False, tool_names=None  # Not yet executed
         )
 
         # Get response from provider with adaptive token limit
@@ -104,7 +107,7 @@ Response Guidelines:
             system_prompt=system_content,
             tools=tools,
             temperature=0,
-            max_tokens=adaptive_max_tokens
+            max_tokens=adaptive_max_tokens,
         )
 
         # Handle tool execution if needed
@@ -116,8 +119,13 @@ Response Guidelines:
         # Return direct response
         return response.content
 
-    def _handle_tool_execution(self, initial_response, base_messages: List[Dict[str, Any]],
-                                system_prompt: str, tool_manager):
+    def _handle_tool_execution(
+        self,
+        initial_response,
+        base_messages: List[Dict[str, Any]],
+        system_prompt: str,
+        tool_manager,
+    ):
         """
         Handle execution of tool calls with support for up to 2 sequential rounds.
 
@@ -149,36 +157,45 @@ Response Guidelines:
 
             # STEP 1: Add assistant's response with tool calls to message history
             # Provider-specific format handling
-            if hasattr(current_response.raw_response, 'content'):
+            if hasattr(current_response.raw_response, "content"):
                 # Anthropic format
-                messages.append({
-                    "role": "assistant",
-                    "content": current_response.raw_response.content
-                })
-            elif hasattr(current_response.raw_response, 'choices'):
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": current_response.raw_response.content,
+                    }
+                )
+            elif hasattr(current_response.raw_response, "choices"):
                 # Groq format
-                messages.append({
-                    "role": "assistant",
-                    "content": current_response.raw_response.choices[0].message.content or "",
-                    "tool_calls": current_response.raw_response.choices[0].message.tool_calls
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": current_response.raw_response.choices[
+                            0
+                        ].message.content
+                        or "",
+                        "tool_calls": current_response.raw_response.choices[
+                            0
+                        ].message.tool_calls,
+                    }
+                )
 
             # STEP 2: Execute all tool calls from current response
             tool_results = []
             for tool_call in current_response.tool_calls:
                 try:
                     if Config.DEBUG:
-                        print(f"[DEBUG] Executing tool: {tool_call['name']} with params: {tool_call['input']}")
+                        print(
+                            f"[DEBUG] Executing tool: {tool_call['name']} with params: {tool_call['input']}"
+                        )
 
                     tool_result = tool_manager.execute_tool(
-                        tool_call["name"],
-                        **tool_call["input"]
+                        tool_call["name"], **tool_call["input"]
                     )
 
-                    tool_results.append({
-                        "tool_call_id": tool_call["id"],
-                        "content": tool_result
-                    })
+                    tool_results.append(
+                        {"tool_call_id": tool_call["id"], "content": tool_result}
+                    )
 
                     if Config.DEBUG:
                         print(f"[DEBUG] Tool result preview: {tool_result[:100]}...")
@@ -196,7 +213,7 @@ Response Guidelines:
                 messages.extend(result_messages)
 
             # STEP 4: Determine if tools should be available for next API call
-            is_final_round = (round_num == MAX_ROUNDS)
+            is_final_round = round_num == MAX_ROUNDS
             tools_for_next_call = None if is_final_round else self.available_tools
 
             if Config.DEBUG:
@@ -206,9 +223,9 @@ Response Guidelines:
             # STEP 5: Determine adaptive token limit based on tools used
             tool_names = [tc["name"] for tc in current_response.tool_calls]
             adaptive_max_tokens = self._determine_max_tokens(
-                query=self.current_query if hasattr(self, 'current_query') else "",
+                query=self.current_query if hasattr(self, "current_query") else "",
                 used_tools=True,
-                tool_names=tool_names
+                tool_names=tool_names,
             )
 
             if Config.DEBUG:
@@ -221,7 +238,7 @@ Response Guidelines:
                     system_prompt=system_prompt,
                     tools=tools_for_next_call,
                     temperature=0,
-                    max_tokens=adaptive_max_tokens
+                    max_tokens=adaptive_max_tokens,
                 )
             except Exception as e:
                 error_msg = f"Error calling LLM: {str(e)}"
@@ -234,26 +251,36 @@ Response Guidelines:
             # Condition A: Claude provided direct answer (no more tool calls needed)
             if not next_response.requires_tool_execution:
                 if Config.DEBUG:
-                    print(f"[DEBUG] Claude answered directly, terminating after round {round_num}")
+                    print(
+                        f"[DEBUG] Claude answered directly, terminating after round {round_num}"
+                    )
                 return next_response.content
 
             # Condition B: Maximum rounds reached
             if is_final_round:
                 if Config.DEBUG:
-                    print(f"[DEBUG] Max rounds ({MAX_ROUNDS}) reached, forcing termination")
+                    print(
+                        f"[DEBUG] Max rounds ({MAX_ROUNDS}) reached, forcing termination"
+                    )
                 # Force return even if Claude wants more tools
                 return next_response.content or "Search limit reached."
 
             # STEP 7: Continue to next round
             if Config.DEBUG:
-                print(f"[DEBUG] Claude requested more tools, continuing to round {round_num + 1}")
+                print(
+                    f"[DEBUG] Claude requested more tools, continuing to round {round_num + 1}"
+                )
             current_response = next_response
 
         # Safety fallback (should never reach here due to loop range)
         return "Unable to complete request."
 
-    def _determine_max_tokens(self, query: str, used_tools: bool = False,
-                              tool_names: Optional[List[str]] = None) -> int:
+    def _determine_max_tokens(
+        self,
+        query: str,
+        used_tools: bool = False,
+        tool_names: Optional[List[str]] = None,
+    ) -> int:
         """
         Determine appropriate token limit based on query characteristics.
 
@@ -275,14 +302,29 @@ Response Guidelines:
         query_lower = query.lower()
 
         # Outline queries: Need space for full lesson lists with descriptions
-        outline_keywords = ["outline", "structure", "topics covered", "lesson list",
-                           "what topics", "course structure", "what is covered"]
+        outline_keywords = [
+            "outline",
+            "structure",
+            "topics covered",
+            "lesson list",
+            "what topics",
+            "course structure",
+            "what is covered",
+        ]
         if any(keyword in query_lower for keyword in outline_keywords):
             return Config.TOKEN_BUDGET_OUTLINE
 
         # Comparison queries: Need space to synthesize multiple sources
-        comparison_keywords = ["compare", "comparison", "difference", "versus",
-                              "vs", "vs.", "both", "similarities"]
+        comparison_keywords = [
+            "compare",
+            "comparison",
+            "difference",
+            "versus",
+            "vs",
+            "vs.",
+            "both",
+            "similarities",
+        ]
         if any(keyword in query_lower for keyword in comparison_keywords):
             return Config.TOKEN_BUDGET_COMPARISON
 

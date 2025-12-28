@@ -22,4 +22,60 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "flake8>=7.0.0",
+    "mypy>=1.8.0",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ['py313']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | chroma_db
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_glob = ["chroma_db/*"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+no_implicit_optional = false
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_no_return = false
+warn_unreachable = true
+strict_equality = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "chromadb.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sentence_transformers.*"
+ignore_missing_imports = true

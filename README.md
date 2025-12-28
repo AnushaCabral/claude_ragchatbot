@@ -54,3 +54,28 @@ The application will be available at:
 - Web Interface: `http://localhost:8000`
 - API Documentation: `http://localhost:8000/docs`
 
+## Development
+
+### Code Quality
+
+The project includes code quality tools for maintaining consistency:
+
+```bash
+# Format code automatically
+./scripts/format.sh
+
+# Run all quality checks
+./scripts/quality.sh
+
+# Auto-fix issues where possible
+./scripts/quality-fix.sh
+```
+
+**Tools configured:**
+- **black**: Code formatting
+- **isort**: Import sorting
+- **flake8**: Linting
+- **mypy**: Type checking
+
+See `CLAUDE.md` for detailed development guidelines and tool configuration.
+

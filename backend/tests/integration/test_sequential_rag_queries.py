@@ -1,11 +1,12 @@
 # backend/tests/integration/test_sequential_rag_queries.py
 # Integration tests for sequential tool calling in RAG system
 
-import pytest
-import tempfile
 import shutil
-from rag_system import RAGSystem
+import tempfile
+
+import pytest
 from config import Config
+from rag_system import RAGSystem
 
 
 @pytest.fixture
@@ -19,12 +20,20 @@ def rag_system_with_test_data():
             chroma_path=temp_dir,
             embedding_model=Config.EMBEDDING_MODEL,
             llm_provider=Config.LLM_PROVIDER,
-            api_key=Config.GROQ_API_KEY if Config.LLM_PROVIDER == "groq" else Config.ANTHROPIC_API_KEY,
-            model=Config.GROQ_MODEL if Config.LLM_PROVIDER == "groq" else Config.ANTHROPIC_MODEL
+            api_key=(
+                Config.GROQ_API_KEY
+                if Config.LLM_PROVIDER == "groq"
+                else Config.ANTHROPIC_API_KEY
+            ),
+            model=(
+                Config.GROQ_MODEL
+                if Config.LLM_PROVIDER == "groq"
+                else Config.ANTHROPIC_MODEL
+            ),
         )
 
         # Add test courses
-        from models import Course, Lesson, CourseChunk
+        from models import Course, CourseChunk, Lesson
 
         # Course 1: MCP
         mcp_course = Course(
@@ -35,14 +44,14 @@ def rag_system_with_test_data():
                 Lesson(
                     lesson_number=0,
                     title="Introduction to MCP",
-                    lesson_link="https://example.com/mcp/lesson0"
+                    lesson_link="https://example.com/mcp/lesson0",
                 ),
                 Lesson(
                     lesson_number=1,
                     title="Building Context Servers",
-                    lesson_link="https://example.com/mcp/lesson1"
-                )
-            ]
+                    lesson_link="https://example.com/mcp/lesson1",
+                ),
+            ],
         )
 
         # Course 2: Prompt Engineering
@@ -54,14 +63,14 @@ def rag_system_with_test_data():
                 Lesson(
                     lesson_number=0,
                     title="Prompt Engineering Basics",
-                    lesson_link="https://example.com/pe/lesson0"
+                    lesson_link="https://example.com/pe/lesson0",
                 ),
                 Lesson(
                     lesson_number=1,
                     title="Advanced Prompting Techniques",
-                    lesson_link="https://example.com/pe/lesson1"
-                )
-            ]
+                    lesson_link="https://example.com/pe/lesson1",
+                ),
+            ],
         )
 
         # Add course metadata
@@ -74,14 +83,14 @@ def rag_system_with_test_data():
                 course_title=mcp_course.title,
                 lesson_number=0,
                 chunk_index=0,
-                content="Course MCP: Build Rich-Context AI Apps with Anthropic Lesson 0 content: The Model Context Protocol (MCP) enables AI applications to access rich contextual information from various data sources. MCP servers act as bridges between AI models and data."
+                content="Course MCP: Build Rich-Context AI Apps with Anthropic Lesson 0 content: The Model Context Protocol (MCP) enables AI applications to access rich contextual information from various data sources. MCP servers act as bridges between AI models and data.",
             ),
             CourseChunk(
                 course_title=mcp_course.title,
                 lesson_number=1,
                 chunk_index=1,
-                content="Course MCP: Build Rich-Context AI Apps with Anthropic Lesson 1 content: Building context servers involves implementing the MCP protocol to expose data sources. Servers can provide file system access, database queries, and API integrations."
-            )
+                content="Course MCP: Build Rich-Context AI Apps with Anthropic Lesson 1 content: Building context servers involves implementing the MCP protocol to expose data sources. Servers can provide file system access, database queries, and API integrations.",
+            ),
         ]
 
         pe_chunks = [
@@ -89,14 +98,14 @@ def rag_system_with_test_data():
                 course_title=pe_course.title,
                 lesson_number=0,
                 chunk_index=0,
-                content="Course Introduction to Prompt Engineering Lesson 0 content: Prompt engineering is the art of crafting effective prompts to guide AI models toward desired outputs. Key techniques include few-shot learning and chain-of-thought prompting."
+                content="Course Introduction to Prompt Engineering Lesson 0 content: Prompt engineering is the art of crafting effective prompts to guide AI models toward desired outputs. Key techniques include few-shot learning and chain-of-thought prompting.",
             ),
             CourseChunk(
                 course_title=pe_course.title,
                 lesson_number=1,
                 chunk_index=1,
-                content="Course Introduction to Prompt Engineering Lesson 1 content: Advanced prompting techniques include role-based prompting, structured output formats, and iterative refinement. These methods improve accuracy and consistency."
-            )
+                content="Course Introduction to Prompt Engineering Lesson 1 content: Advanced prompting techniques include role-based prompting, structured output formats, and iterative refinement. These methods improve accuracy and consistency.",
+            ),
         ]
 
         rag.vector_store.add_course_content(mcp_chunks + pe_chunks)
@@ -131,8 +140,7 @@ class TestSequentialRagQueries:
 
         # At least one source should mention MCP or be from that course
         mcp_mentioned = any(
-            "MCP" in text or "Model Context Protocol" in text
-            for text in source_texts
+            "MCP" in text or "Model Context Protocol" in text for text in source_texts
         )
 
         # At least one source should be from Prompt Engineering
@@ -165,8 +173,7 @@ class TestSequentialRagQueries:
         # Sources should be relevant to MCP
         source_texts = [s.display_text for s in sources]
         mcp_relevant = any(
-            "MCP" in text or "Model Context Protocol" in text
-            for text in source_texts
+            "MCP" in text or "Model Context Protocol" in text for text in source_texts
         )
         assert mcp_relevant, "Sources should be relevant to MCP"
 
@@ -176,7 +183,9 @@ class TestSequentialRagQueries:
         rag = rag_system_with_test_data
 
         # Query that could benefit from getting outline first
-        query = "What topics are covered in both the MCP and Prompt Engineering courses?"
+        query = (
+            "What topics are covered in both the MCP and Prompt Engineering courses?"
+        )
 
         response, sources = rag.query(query, session_id="test_session_3")
 
@@ -265,7 +274,9 @@ class TestProviderCompatibility:
     """Test that sequential calling works with different providers"""
 
     @pytest.mark.integration
-    @pytest.mark.skipif(Config.LLM_PROVIDER != "anthropic", reason="Requires Anthropic provider")
+    @pytest.mark.skipif(
+        Config.LLM_PROVIDER != "anthropic", reason="Requires Anthropic provider"
+    )
     def test_anthropic_sequential_calls(self, rag_system_with_test_data):
         """Test sequential calling with Anthropic provider"""
         rag = rag_system_with_test_data
