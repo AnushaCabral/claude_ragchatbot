@@ -111,6 +111,40 @@ header h1 {
     margin-bottom: 0;
 }
 
+/* New Chat Button */
+.new-chat-btn {
+    width: auto;
+    padding: 0.5rem 0;
+    margin-bottom: 1.5rem;
+    background: none;
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: left;
+    outline: none;
+}
+
+.new-chat-btn:hover {
+    color: var(--primary-color);
+}
+
+.new-chat-btn:focus {
+    color: var(--primary-color);
+}
+
+.new-chat-btn:active {
+    color: var(--primary-color);
+}
+
 /* Main Chat Area */
 .chat-main {
     flex: 1;
@@ -241,8 +275,41 @@ header h1 {
 }
 
 .sources-content {
-    padding: 0 0.5rem 0.25rem 1.5rem;
+    padding: 0.5rem 0.5rem 0.5rem 1.5rem;
     color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Source link styling - clickable sources */
+.sources-content .source-link {
+    color: var(--primary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.1);
+    display: inline-block;
+    font-size: 0.8rem;
+    border-left: 3px solid var(--primary);
+}
+
+.sources-content .source-link:hover {
+    background: rgba(59, 130, 246, 0.2);
+    transform: translateX(2px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Source text styling - non-clickable sources */
+.sources-content .source-text {
+    color: var(--text-secondary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(156, 163, 175, 0.1);
+    display: inline-block;
+    font-size: 0.8rem;
+    border-left: 3px solid var(--text-secondary);
 }
 
 /* Markdown formatting styles */

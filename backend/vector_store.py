@@ -80,7 +80,14 @@ class VectorStore:
         if course_name:
             course_title = self._resolve_course_name(course_name)
             if not course_title:
-                return SearchResults.empty(f"No course found matching '{course_name}'")
+                # Get list of available courses for helpful error
+                available = self.get_existing_course_titles()
+                error_msg = f"No course found matching '{course_name}'."
+                if available:
+                    error_msg += f" Available courses: {', '.join(available[:3])}"
+                    if len(available) > 3:
+                        error_msg += f" (and {len(available) - 3} more)"
+                return SearchResults.empty(error_msg)
         
         # Step 2: Build filter for content search
         filter_dict = self._build_filter(course_title, lesson_number)
@@ -100,19 +107,32 @@ class VectorStore:
             return SearchResults.empty(f"Search error: {str(e)}")
     
     def _resolve_course_name(self, course_name: str) -> Optional[str]:
-        """Use vector search to find best matching course by name"""
+        """
+        Use vector search to find best matching course by name.
+
+        Returns None if no good match found (similarity threshold check).
+        """
         try:
             results = self.course_catalog.query(
                 query_texts=[course_name],
                 n_results=1
             )
-            
+
             if results['documents'][0] and results['metadatas'][0]:
-                # Return the title (which is now the ID)
-                return results['metadatas'][0][0]['title']
+                # Check if match is good enough using similarity threshold
+                # Lower distance = better match in ChromaDB
+                distance = results['distances'][0][0] if results.get('distances') else 0
+
+                # Threshold: only accept if distance < 1.5 (reasonable similarity)
+                # This allows "MCP" to match "MCP: Full Title" but rejects nonsense
+                if distance < 1.5:
+                    return results['metadatas'][0][0]['title']
+                else:
+                    print(f"Course '{course_name}' no good match (distance: {distance:.3f})")
+                    return None
         except Exception as e:
             print(f"Error resolving course name: {e}")
-        
+
         return None
     
     def _build_filter(self, course_title: Optional[str], lesson_number: Optional[int]) -> Optional[Dict]:
@@ -264,4 +284,29 @@ class VectorStore:
             return None
         except Exception as e:
             print(f"Error getting lesson link: {e}")
+
+    def get_source_link(self, course_title: str, lesson_number: Optional[int] = None) -> Optional[str]:
+        """
+        Get best available link for a source (lesson link > course link > None).
+
+        Args:
+            course_title: Course title
+            lesson_number: Optional lesson number
+
+        Returns:
+            URL string or None
+        """
+        try:
+            # Try lesson-specific link first if lesson_number provided
+            if lesson_number is not None:
+                lesson_link = self.get_lesson_link(course_title, lesson_number)
+                if lesson_link:
+                    return lesson_link
+
+            # Fall back to course link
+            course_link = self.get_course_link(course_title)
+            return course_link
+        except Exception as e:
+            print(f"Error getting source link for '{course_title}', lesson {lesson_number}: {e}")
+            return None
     

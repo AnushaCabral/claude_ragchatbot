@@ -38,6 +38,14 @@ function setupEventListeners() {
             sendMessage();
         });
     });
+
+    // New Chat button
+    const newChatBtn = document.getElementById('newChatBtn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+            createNewSession();
+        });
+    }
 }
 
 
@@ -122,10 +130,30 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        // Build sources HTML with clickable links
+        const sourcesHtml = sources.map(source => {
+            // Handle both string (old format) and object (new format)
+            if (typeof source === 'string') {
+                // Backward compatibility: plain string sources
+                return `<span class="source-text">${escapeHtml(source)}</span>`;
+            }
+
+            // New format: Source objects with optional URLs
+            const displayText = source.display_text || source.course_title || '[Unknown Source]';
+
+            if (source.url) {
+                // Clickable link - opens in new tab with external link icon
+                return `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer" class="source-link">📖 ${escapeHtml(displayText)}</a>`;
+            } else {
+                // Plain text - no link available
+                return `<span class="source-text">📄 ${escapeHtml(displayText)}</span>`;
+            }
+        }).join('');
+
         html += `
-            <details class="sources-collapsible">
-                <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+            <details class="sources-collapsible" open>
+                <summary class="sources-header">📚 Sources</summary>
+                <div class="sources-content">${sourcesHtml}</div>
             </details>
         `;
     }
