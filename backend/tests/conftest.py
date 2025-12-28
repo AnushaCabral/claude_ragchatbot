@@ -184,3 +184,118 @@ def mock_anthropic_tool_call_response():
     mock_response.content = [mock_tool_block]
     mock_response.stop_reason = "tool_use"
     return mock_response
+
+
+# ============================================================================
+# FastAPI Testing Fixtures
+# ============================================================================
+
+@pytest.fixture
+def mock_rag_system(sample_courses):
+    """Mock RAG system for API testing"""
+    from rag_system import RAGSystem
+
+    mock_rag = Mock(spec=RAGSystem)
+
+    # Mock query method
+    mock_rag.query = Mock(return_value=(
+        "This is a test answer about MCP.",
+        [
+            Source(
+                display_text="MCP: Build Rich-Context AI Apps with Anthropic - Lesson 0",
+                course_title="MCP: Build Rich-Context AI Apps with Anthropic",
+                lesson_number=0,
+                url="https://example.com/mcp-lesson-0"
+            )
+        ]
+    ))
+
+    # Mock get_course_analytics method
+    mock_rag.get_course_analytics = Mock(return_value={
+        "total_courses": len(sample_courses),
+        "course_titles": [course.title for course in sample_courses]
+    })
+
+    # Mock session manager
+    mock_rag.session_manager = Mock()
+    mock_rag.session_manager.create_session = Mock(return_value="test-session-123")
+
+    return mock_rag
+
+
+@pytest.fixture
+def test_app(mock_rag_system):
+    """Create a test FastAPI app without static file mounting"""
+    from fastapi import FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    from pydantic import BaseModel
+    from typing import List, Optional
+    from models import Source
+
+    # Create test app without static files
+    app = FastAPI(title="Course Materials RAG System - Test", root_path="")
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Request/Response models
+    class QueryRequest(BaseModel):
+        query: str
+        session_id: Optional[str] = None
+
+    class QueryResponse(BaseModel):
+        answer: str
+        sources: List[Source]
+        session_id: str
+
+    class CourseStats(BaseModel):
+        total_courses: int
+        course_titles: List[str]
+
+    # Define endpoints inline (same logic as backend/app.py)
+    @app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        try:
+            session_id = request.session_id
+            if not session_id:
+                session_id = mock_rag_system.session_manager.create_session()
+
+            answer, sources = mock_rag_system.query(request.query, session_id)
+
+            return QueryResponse(
+                answer=answer,
+                sources=sources,
+                session_id=session_id
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        try:
+            analytics = mock_rag_system.get_course_analytics()
+            return CourseStats(
+                total_courses=analytics["total_courses"],
+                course_titles=analytics["course_titles"]
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/")
+    async def root():
+        return {"message": "Course Materials RAG System API"}
+
+    return app
+
+
+@pytest.fixture
+def client(test_app):
+    """Create a test client for the FastAPI app"""
+    from fastapi.testclient import TestClient
+    return TestClient(test_app)
